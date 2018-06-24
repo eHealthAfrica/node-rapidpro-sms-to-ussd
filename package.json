@@ -1,0 +1,58 @@
+{
+  "name": "node-rapidpro-sms-to-ussd",
+  "version": "0.0.1",
+  "main": "index.js",
+  "repository": "git@github.com:musamusa/node-rapidpro-sms-to-ussd.git",
+  "author": "Musa Musa <musakunte@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "jest",
+    "start": "nodemon src/server.js --dev --exec babel-node --presets es2015,stage-2",
+    "build": "npx babel src --out-dir dist",
+    "lint": "standard | snazzy --format --verbose",
+    "prepublish": "yarn build",
+    "prebuild": "yarn lint"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-jest": "^22.4.3",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-2": "^6.24.1",
+    "jest": "^23.1.0",
+    "snazzy": "^7.1.1",
+    "standard": "^11.0.1"
+  },
+  "standard": {
+    "env": [
+      "jest"
+    ],
+    "ignore": [
+      "dist"
+    ],
+    "globals": [
+      "URL",
+      "fetch",
+      "emit"
+    ]
+  },
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "compression": "^1.7.2",
+    "couchdb-bootstrap-extended": "^1.0.1",
+    "express": "^4.16.3",
+    "express-content-length-validator": "^1.0.0",
+    "extend": "^3.0.1",
+    "helmet": "^3.12.1",
+    "lodash": "^4.17.10",
+    "moment": "^2.22.2",
+    "moment-timezone": "^0.5.21",
+    "morgan": "^1.9.0",
+    "node-code-utility": "^1.0.1-alpha",
+    "node-logger-extended": "^1.0.0",
+    "node-pouchdb-extended": "^0.1.0",
+    "request-promise": "^4.2.2",
+    "zlib": "^1.0.5"
+  }
+}

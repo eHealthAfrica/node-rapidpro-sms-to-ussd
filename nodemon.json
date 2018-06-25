@@ -1,0 +1,19 @@
+{
+  "verbose": true,
+  "ignore": [
+    "*.json", "*.html",
+    "couchdb/*",
+    "gulp",
+    "log",
+    ".tmp",
+    "*.json",
+    "*.html",
+    "*.log",
+    "couchdb/_app_/*",
+    "node_modules"
+  ],
+  "execMap": {
+    "html": "html",
+    "pde": "processing --sketch={{pwd}} --run"
+  }
+}

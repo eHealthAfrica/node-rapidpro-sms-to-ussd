@@ -1,6 +1,6 @@
 {
   "name": "node-rapidpro-sms-to-ussd",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "repository": "git@github.com:musamusa/node-rapidpro-sms-to-ussd.git",
   "author": "Musa Musa <musakunte@gmail.com>",

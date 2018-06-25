@@ -1,9 +1,5 @@
 'use strict';
 
-var _routes = require('./routes.conf');
-
-var _routes2 = _interopRequireDefault(_routes);
-
 var _model = require('./model');
 
 var _model2 = _interopRequireDefault(_model);
@@ -23,7 +19,7 @@ var _path2 = _interopRequireDefault(_path);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var APP_ROOT = _path2.default.join(_path2.default.resolve(__dirname, '../'));
-module.exports = function (configMap, app, router) {
+module.exports = function (configMap, router) {
   var bootstrapDBoptions = {};
   configMap = _nodeCodeUtility2.default.is.object(configMap) ? configMap : {};
   _model2.default.setupConfig(configMap);
@@ -33,7 +29,7 @@ module.exports = function (configMap, app, router) {
   }
   var bootstrap = _couchdbBootstrapExtended2.default.getInstance(_path2.default.join(APP_ROOT, 'couchdb'), configMap.COUCHDB_URL, bootstrapDBoptions);
   bootstrap.runAllSetup();
-  _routes2.default.init(app);
+
   require('./router').init(router);
-  return app;
+  return router;
 };

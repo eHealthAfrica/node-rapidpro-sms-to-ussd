@@ -4,6 +4,7 @@ import os from 'os'
 import http from 'http'
 import express from 'express'
 import server from './index'
+import RoutesConfig from './routes.conf'
 
 const PORT = process.env.PORT || 4040
 const app = express()
@@ -16,7 +17,9 @@ server({
   USSD_CODES: [
     '*35131*22#'
   ]
-}, app, router)
+}, router)
+
+RoutesConfig.init(app)
 app.use('/', router)
 
 // log exceptions without halting system

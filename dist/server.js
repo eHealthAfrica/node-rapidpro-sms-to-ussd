@@ -16,6 +16,10 @@ var _index = require('./index');
 
 var _index2 = _interopRequireDefault(_index);
 
+var _routes = require('./routes.conf');
+
+var _routes2 = _interopRequireDefault(_routes);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var PORT = process.env.PORT || 4040;
@@ -27,7 +31,9 @@ var router = _express2.default.Router();
   COUCHDB_URL: 'http://admin:admin@localhost:5984/test',
   DB_NAME: 'test',
   USSD_CODES: ['*35131*22#']
-}, app, router);
+}, router);
+
+_routes2.default.init(app);
 app.use('/', router);
 
 // log exceptions without halting system

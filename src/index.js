@@ -1,13 +1,12 @@
 'use strict'
 
-import RoutesConfig from './routes.conf'
 import USSDModel from './model'
 import Utility from 'node-code-utility'
 import CouchDBBootstrap from 'couchdb-bootstrap-extended'
 import path from 'path'
 
 const APP_ROOT = path.join(path.resolve(__dirname, '../'))
-module.exports = function (configMap, app, router) {
+module.exports = function (configMap, router) {
   const bootstrapDBoptions = {}
   configMap = Utility.is.object(configMap) ? configMap : {}
   USSDModel.setupConfig(configMap)
@@ -17,7 +16,7 @@ module.exports = function (configMap, app, router) {
   }
   const bootstrap = CouchDBBootstrap.getInstance(path.join(APP_ROOT, 'couchdb'), configMap.COUCHDB_URL, bootstrapDBoptions)
   bootstrap.runAllSetup()
-  RoutesConfig.init(app)
+
   require('./router').init(router)
-  return app
+  return router
 }

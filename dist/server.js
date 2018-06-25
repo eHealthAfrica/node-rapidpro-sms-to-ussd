@@ -24,7 +24,8 @@ var router = _express2.default.Router();
 
 (0, _index2.default)({
   RAPIDPRO_CHANNEL_TOKEN: '5c2e7bc6-a96b-44fb-a95c-09863cdff4cf',
-  COUCHDB_URL: 'http://admin:admin@localhost:5984/set',
+  COUCHDB_URL: 'http://admin:admin@localhost:5984/test',
+  DB_NAME: 'test',
   USSD_CODES: ['*35131*22#']
 }, app, router);
 app.use('/', router);

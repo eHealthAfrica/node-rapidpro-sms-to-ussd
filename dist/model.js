@@ -360,7 +360,6 @@ var Model = function () {
       this.config.USSD_CODES.forEach(function (code) {
         data.ussdparams = data.ussdparams.replace(code.replace('#', ''), _constants2.default.flow.TRIGGER);
       });
-      console.log('ussdparams', data.ussdparams);
       return data.ussdparams;
     }
 

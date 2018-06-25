@@ -338,7 +338,6 @@ class Model {
     this.config.USSD_CODES.forEach(code => {
       data.ussdparams = data.ussdparams.replace(code.replace('#', ''), constants.flow.TRIGGER)
     })
-    console.log('ussdparams', data.ussdparams)
     return data.ussdparams
   }
 

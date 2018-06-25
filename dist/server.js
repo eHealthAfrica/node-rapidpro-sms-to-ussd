@@ -12,33 +12,21 @@ var _express = require('express');
 
 var _express2 = _interopRequireDefault(_express);
 
-var _routes = require('./routes.conf');
+var _index = require('./index');
 
-var _routes2 = _interopRequireDefault(_routes);
-
-var _router = require('./router');
-
-var _router2 = _interopRequireDefault(_router);
-
-var _model = require('./model');
-
-var _model2 = _interopRequireDefault(_model);
+var _index2 = _interopRequireDefault(_index);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var PORT = process.env.PORT || 4040;
-
 var app = (0, _express2.default)();
 var router = _express2.default.Router();
 
-_model2.default.setupConfig({
+(0, _index2.default)({
   RAPIDPRO_CHANNEL_TOKEN: '5c2e7bc6-a96b-44fb-a95c-09863cdff4cf',
   COUCHDB_URL: 'http://admin:admin@localhost:5984/set',
   USSD_CODES: ['*35131*22#']
-});
-
-_routes2.default.init(app);
-_router2.default.init(router);
+}, app, router);
 app.use('/', router);
 
 // log exceptions without halting system

@@ -7,14 +7,15 @@ import path from 'path'
 
 const APP_ROOT = path.join(path.resolve(__dirname, '../'))
 module.exports = function (configMap, router) {
-  const bootstrapDBoptions = {}
   configMap = Utility.is.object(configMap) ? configMap : {}
   USSDModel.setupConfig(configMap)
-  if (configMap.DB_NAME) {
-    bootstrapDBoptions.src = 'ussd-records'
-    bootstrapDBoptions.target = configMap.DB_NAME
+
+  configMap.couchdbFolderPath = path.join(APP_ROOT, 'couchdb')
+  configMap.dbOptions = {
+    src: 'ussd-records',
+    target: configMap.db
   }
-  const bootstrap = CouchDBBootstrap.getInstance(path.join(APP_ROOT, 'couchdb'), configMap.COUCHDB_URL, bootstrapDBoptions)
+  const bootstrap = CouchDBBootstrap.getInstance(configMap)
   bootstrap.runAllSetup()
 
   require('./router').init(router)

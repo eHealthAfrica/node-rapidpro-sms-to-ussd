@@ -198,7 +198,7 @@ var Model = function () {
       doc.docType = 'ussd';
       doc.phone = _nodeCodeUtility2.default.reformatPhoneNumber(doc.phone);
       doc.endOfSession = this.isEndOfSession(doc.userData);
-      if (config.beforeSave) {
+      if (config.beforeSave && _nodeCodeUtility2.default.is.function(config.beforeSave)) {
         try {
           return config.beforeSave(doc).then(db.save);
         } catch (e) {

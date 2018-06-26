@@ -39,12 +39,18 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var logger = new _nodeLoggerExtended.ModelLogger({ name: 'ussd' });
 var USER_STATE_ID = _constants2.default.USER_STATE_ID;
 var defaultConfig = {
-  TIME_ZONE: 'Africa/Lagos',
-  RAPIDPRO_URL: 'http://localhost:8000',
-  RAPIDPRO_API_TOKEN: '',
-  RAPIDPRO_CHANNEL_TOKEN: '',
-  USSD_CODES: [],
-  COUCHDB_URL: 'localDB'
+  timeZone: 'Africa/Lagos',
+  host: 'http://localhost',
+  db: 'test',
+  port: 5984,
+  auth: {
+    username: '',
+    password: ''
+  },
+  rapidProUrl: '',
+  rapidProChannelToken: '',
+  rapidProAPIToken: '',
+  ussdCodes: []
 };
 
 var config = {};
@@ -67,7 +73,7 @@ var Model = function () {
   _createClass(Model, [{
     key: 'getRapidProUrl',
     value: function getRapidProUrl(status) {
-      return this.config.RAPIDPRO_URL + '/handlers/external/' + status + '/' + this.config.RAPIDPRO_CHANNEL_TOKEN + '/';
+      return this.config.rapidProUrl + '/handlers/external/' + status + '/' + this.config.rapidProChannelToken + '/';
     }
 
     /**
@@ -89,8 +95,8 @@ var Model = function () {
 
       logger.info('about to process last response (' + lastResponse.phone + ') and request (' + lastResponse.phone + ')');
       logger.info('last request data was (' + lastResponse.userData + ')');
-      var today = (0, _momentTimezone2.default)().tz(this.config.TIME_ZONE).format('L');
-      var reportDate = (0, _momentTimezone2.default)(lastResponse.createdOn).tz(this.config.TIME_ZONE).format('L');
+      var today = (0, _momentTimezone2.default)().tz(this.config.timeZone).format('L');
+      var reportDate = (0, _momentTimezone2.default)(lastResponse.createdOn).tz(this.config.timeZone).format('L');
 
       var sessionNotEnded = lastResponse.endOfSession !== undefined && !lastResponse.endOfSession;
       var isNotEntry = (lastRequest.userData || '').trim() !== _constants2.default.flow.TRIGGER;
@@ -192,13 +198,15 @@ var Model = function () {
       doc.docType = 'ussd';
       doc.phone = _nodeCodeUtility2.default.reformatPhoneNumber(doc.phone);
       doc.endOfSession = this.isEndOfSession(doc.userData);
-      // return smsService.currentCampaign(doc.phone)
-      //   .then(campaign => {
-      //     doc.campaignId = campaign || ''
-      //     logger.info(`saving data with direction = ${doc.direction} and text is = ${doc.userData} for
-      //     contact = ${doc.phone} for campaign = ${campaign || 'None'}`)
-      //     return db.save(doc)
-      //   })
+      if (config.beforeSave) {
+        try {
+          return config.beforeSave(doc).then(db.save);
+        } catch (e) {
+          logger.debug(e);
+          return db.save(doc);
+        }
+      }
+
       return db.save(doc);
     }
 
@@ -298,7 +306,7 @@ var Model = function () {
         form: {
           from: _nodeCodeUtility2.default.reformatPhoneNumber(data.msisdn),
           text: this.setupCode(data),
-          date: new Date((0, _momentTimezone2.default)().tz(this.config.TIME_ZONE).format()).toJSON()
+          date: new Date((0, _momentTimezone2.default)().tz(this.config.timeZone).format()).toJSON()
         }
       };
 
@@ -356,8 +364,8 @@ var Model = function () {
      */
     value: function setupCode(data) {
       data.ussdparams = data.ussdparams.replace('#', '');
-      this.config.USSD_CODES = _nodeCodeUtility2.default.is.array(this.config.USSD_CODES) ? this.config.USSD_CODES : [];
-      this.config.USSD_CODES.forEach(function (code) {
+      this.config.ussdCodes = _nodeCodeUtility2.default.is.array(this.config.ussdCodes) ? this.config.ussdCodes : [];
+      this.config.ussdCodes.forEach(function (code) {
         data.ussdparams = data.ussdparams.replace(code.replace('#', ''), _constants2.default.flow.TRIGGER);
       });
       return data.ussdparams;
@@ -577,7 +585,7 @@ var Model = function () {
       configMap = (0, _extend2.default)(true, defaultConfig, configMap);
       Model.config = configMap;
       config = configMap;
-      db = _nodePouchdbExtended2.default.getInstance(Model.config.COUCHDB_URL);
+      db = _nodePouchdbExtended2.default.getInstance(configMap);
     }
   }]);
 

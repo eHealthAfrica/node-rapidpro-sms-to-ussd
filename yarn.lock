@@ -1477,14 +1477,15 @@ core-util-is@1.0.2, core-util-is@~1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/core-util-is/-/core-util-is-1.0.2.tgz#b5fd54220aa2bc5ab57aab7140c940754503c1a7"
 
-couchdb-bootstrap-extended@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/couchdb-bootstrap-extended/-/couchdb-bootstrap-extended-1.0.2.tgz#7b9002720a5fd219f343a313bde49d0a3da06d3c"
+couchdb-bootstrap-extended@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/couchdb-bootstrap-extended/-/couchdb-bootstrap-extended-1.3.0.tgz#8df8329698949e84103fdad8c23112716d0105a4"
   dependencies:
     bluebird "^3.5.1"
     couchdb-bootstrap "^14.2.0"
     couchdb-ensure "^1.4.0"
     fs.extra "^1.3.2"
+    node-code-utility "^1.0.1-alpha"
     request-promise "^4.2.2"
 
 couchdb-bootstrap@^14.2.0:
@@ -4019,6 +4020,15 @@ node-abi@^2.2.0:
   dependencies:
     semver "^5.4.1"
 
+node-code-utility@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/node-code-utility/-/node-code-utility-1.0.0.tgz#db99c8ed27a5ebd89528563ab8a7ee26db8daf05"
+  dependencies:
+    bluebird "^3.5.1"
+    extend "^3.0.1"
+    google-libphonenumber "^3.1.8"
+    node-logger-extended "^1.0.0"
+
 node-code-utility@^1.0.1-alpha:
   version "1.0.1-alpha"
   resolved "https://registry.yarnpkg.com/node-code-utility/-/node-code-utility-1.0.1-alpha.tgz#9c5b6f7b1c6d77c8695370f5598b7b05f9babdcc"
@@ -4048,9 +4058,9 @@ node-notifier@^5.2.1:
     shellwords "^0.1.1"
     which "^1.3.0"
 
-node-pouchdb-extended@^0.1.0:
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/node-pouchdb-extended/-/node-pouchdb-extended-0.1.0.tgz#3a90a6438cdb6538330900fabdc22250bab213ef"
+node-pouchdb-extended@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/node-pouchdb-extended/-/node-pouchdb-extended-1.0.0.tgz#a0e4403557fb06d80b5a7c367acadabc8d0c882a"
   dependencies:
     bluebird "^3.5.1"
     extend "^3.0.1"
@@ -4881,7 +4891,7 @@ request-promise@^4.2.2:
     stealthy-require "^1.1.0"
     tough-cookie ">=2.3.3"
 
-request@2.83.0, request@^2.83.0:
+request@2.83.0:
   version "2.83.0"
   resolved "https://registry.yarnpkg.com/request/-/request-2.83.0.tgz#ca0b65da02ed62935887808e6f510381034e3356"
   dependencies:
@@ -4908,7 +4918,7 @@ request@2.83.0, request@^2.83.0:
     tunnel-agent "^0.6.0"
     uuid "^3.1.0"
 
-request@^2.85.0:
+request@^2.83.0, request@^2.85.0:
   version "2.87.0"
   resolved "https://registry.yarnpkg.com/request/-/request-2.87.0.tgz#32f00235cd08d482b4d0d68db93a829c0ed5756e"
   dependencies:

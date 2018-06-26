@@ -20,14 +20,15 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var APP_ROOT = _path2.default.join(_path2.default.resolve(__dirname, '../'));
 module.exports = function (configMap, router) {
-  var bootstrapDBoptions = {};
   configMap = _nodeCodeUtility2.default.is.object(configMap) ? configMap : {};
   _model2.default.setupConfig(configMap);
-  if (configMap.DB_NAME) {
-    bootstrapDBoptions.src = 'ussd-records';
-    bootstrapDBoptions.target = configMap.DB_NAME;
-  }
-  var bootstrap = _couchdbBootstrapExtended2.default.getInstance(_path2.default.join(APP_ROOT, 'couchdb'), configMap.COUCHDB_URL, bootstrapDBoptions);
+
+  configMap.couchdbFolderPath = _path2.default.join(APP_ROOT, 'couchdb');
+  configMap.dbOptions = {
+    src: 'ussd-records',
+    target: configMap.db
+  };
+  var bootstrap = _couchdbBootstrapExtended2.default.getInstance(configMap);
   bootstrap.runAllSetup();
 
   require('./router').init(router);

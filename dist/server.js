@@ -24,13 +24,20 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 var PORT = process.env.PORT || 4040;
 var app = (0, _express2.default)();
-var router = _express2.default.Router();
+var router = _express2.default.Router([]);
 
 (0, _index2.default)({
-  RAPIDPRO_CHANNEL_TOKEN: '5c2e7bc6-a96b-44fb-a95c-09863cdff4cf',
-  COUCHDB_URL: 'http://admin:admin@localhost:5984/test',
-  DB_NAME: 'test',
-  USSD_CODES: ['*35131*22#']
+  host: 'http://localhost',
+  port: 5984,
+  db: 'test',
+  auth: {
+    username: 'admin',
+    password: 'admin'
+  },
+  rapidProUrl: 'http://localhost:8000',
+  rapidProChannelToken: 'f59a26f6-b8e0-4831-831c-3bf416edcc5c',
+  rapidProAPIToken: '',
+  ussdCodes: ['*35131*22#']
 }, router);
 
 _routes2.default.init(app);

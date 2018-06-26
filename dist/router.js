@@ -5,7 +5,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Controller = require('./controller');
-var BASE_URL = '/api/v1/ussd';
+var BASE_URL = '/';
 
 var USSDRoutes = function () {
   function USSDRoutes() {
@@ -15,12 +15,13 @@ var USSDRoutes = function () {
   _createClass(USSDRoutes, null, [{
     key: 'init',
     value: function init(router) {
-      router.route(BASE_URL + '/').get(Controller.start).post(Controller.start);
+      router.route('' + BASE_URL).get(Controller.start).post(Controller.start);
 
-      router.route(BASE_URL + '/all').get(Controller.all);
+      router.route(BASE_URL + 'all').get(Controller.all);
 
-      router.route(BASE_URL + '/config').get(Controller.getConfig);
-      router.route(BASE_URL + '/from-rapid-pro').post(Controller.sendUSSD);
+      router.route(BASE_URL + 'config').get(Controller.getConfig);
+
+      router.route(BASE_URL + 'from-rapid-pro').post(Controller.sendUSSD);
     }
   }]);
 

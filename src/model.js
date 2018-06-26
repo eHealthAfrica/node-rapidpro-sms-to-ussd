@@ -13,12 +13,18 @@ import constants from './constants'
 const logger = new ModelLogger({name: 'ussd'})
 const USER_STATE_ID = constants.USER_STATE_ID
 const defaultConfig = {
-  TIME_ZONE: 'Africa/Lagos',
-  RAPIDPRO_URL: 'http://localhost:8000',
-  RAPIDPRO_API_TOKEN: '',
-  RAPIDPRO_CHANNEL_TOKEN: '',
-  USSD_CODES: [],
-  COUCHDB_URL: 'localDB'
+  timeZone: 'Africa/Lagos',
+  host: 'http://localhost',
+  db: 'test',
+  port: 5984,
+  auth: {
+    username: '',
+    password: ''
+  },
+  rapidProUrl: '',
+  rapidProChannelToken: '',
+  rapidProAPIToken: '',
+  ussdCodes: []
 }
 
 let config = {}
@@ -37,7 +43,7 @@ class Model {
   }
 
   getRapidProUrl (status) {
-    return `${this.config.RAPIDPRO_URL}/handlers/external/${status}/${this.config.RAPIDPRO_CHANNEL_TOKEN}/`
+    return `${this.config.rapidProUrl}/handlers/external/${status}/${this.config.rapidProChannelToken}/`
   }
 
   /**
@@ -57,8 +63,8 @@ class Model {
 
     logger.info(`about to process last response (${lastResponse.phone}) and request (${lastResponse.phone})`)
     logger.info(`last request data was (${lastResponse.userData})`)
-    const today = moment().tz(this.config.TIME_ZONE).format('L')
-    const reportDate = moment(lastResponse.createdOn).tz(this.config.TIME_ZONE).format('L')
+    const today = moment().tz(this.config.timeZone).format('L')
+    const reportDate = moment(lastResponse.createdOn).tz(this.config.timeZone).format('L')
 
     const sessionNotEnded = lastResponse.endOfSession !== undefined && !lastResponse.endOfSession
     const isNotEntry = (lastRequest.userData || '').trim() !== constants.flow.TRIGGER
@@ -152,13 +158,16 @@ class Model {
     doc.docType = 'ussd'
     doc.phone = Utility.reformatPhoneNumber(doc.phone)
     doc.endOfSession = this.isEndOfSession(doc.userData)
-    // return smsService.currentCampaign(doc.phone)
-    //   .then(campaign => {
-    //     doc.campaignId = campaign || ''
-    //     logger.info(`saving data with direction = ${doc.direction} and text is = ${doc.userData} for
-    //     contact = ${doc.phone} for campaign = ${campaign || 'None'}`)
-    //     return db.save(doc)
-    //   })
+    if (config.beforeSave && Utility.is.function(config.beforeSave)) {
+      try {
+        return config.beforeSave(doc)
+          .then(db.save)
+      } catch (e) {
+        logger.debug(e)
+        return db.save(doc)
+      }
+    }
+
     return db.save(doc)
   }
 
@@ -251,7 +260,7 @@ class Model {
       form: {
         from: Utility.reformatPhoneNumber(data.msisdn),
         text: this.setupCode(data),
-        date: new Date(moment().tz(this.config.TIME_ZONE).format()).toJSON()
+        date: new Date(moment().tz(this.config.timeZone).format()).toJSON()
       }
     }
 
@@ -334,8 +343,8 @@ class Model {
    */
   setupCode (data) {
     data.ussdparams = data.ussdparams.replace('#', '')
-    this.config.USSD_CODES = Utility.is.array(this.config.USSD_CODES) ? this.config.USSD_CODES : []
-    this.config.USSD_CODES.forEach(code => {
+    this.config.ussdCodes = Utility.is.array(this.config.ussdCodes) ? this.config.ussdCodes : []
+    this.config.ussdCodes.forEach(code => {
       data.ussdparams = data.ussdparams.replace(code.replace('#', ''), constants.flow.TRIGGER)
     })
     return data.ussdparams
@@ -494,7 +503,7 @@ class Model {
     configMap = extend(true, defaultConfig, configMap)
     Model.config = configMap
     config = configMap
-    db = Database.getInstance(Model.config.COUCHDB_URL)
+    db = Database.getInstance(configMap)
   }
 }
 

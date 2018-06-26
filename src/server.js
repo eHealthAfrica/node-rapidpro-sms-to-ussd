@@ -8,15 +8,20 @@ import RoutesConfig from './routes.conf'
 
 const PORT = process.env.PORT || 4040
 const app = express()
-const router = express.Router()
+const router = express.Router([])
 
 server({
-  RAPIDPRO_CHANNEL_TOKEN: '5c2e7bc6-a96b-44fb-a95c-09863cdff4cf',
-  COUCHDB_URL: 'http://admin:admin@localhost:5984/test',
-  DB_NAME: 'test',
-  USSD_CODES: [
-    '*35131*22#'
-  ]
+  host: 'http://localhost',
+  port: 5984,
+  db: 'test',
+  auth: {
+    username: 'admin',
+    password: 'admin'
+  },
+  rapidProUrl: 'http://localhost:8000',
+  rapidProChannelToken: 'f59a26f6-b8e0-4831-831c-3bf416edcc5c',
+  rapidProAPIToken: '',
+  ussdCodes: ['*35131*22#']
 }, router)
 
 RoutesConfig.init(app)

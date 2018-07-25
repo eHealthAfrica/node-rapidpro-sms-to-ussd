@@ -1,6 +1,6 @@
 {
   "name": "node-rapidpro-sms-to-ussd",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "main": "index.js",
   "repository": "git@github.com:musamusa/node-rapidpro-sms-to-ussd.git",
   "author": "Musa Musa <musakunte@gmail.com>",
@@ -54,6 +54,7 @@
     "node-logger-extended": "^1.0.0",
     "node-pouchdb-extended": "^1.0.1",
     "request-promise": "^4.2.2",
+    "sleep-sync": "^2.1.1",
     "zlib": "^1.0.5"
   }
 }

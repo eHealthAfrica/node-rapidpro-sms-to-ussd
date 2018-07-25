@@ -487,7 +487,8 @@ class Model {
    * @returns {Boolean}
    */
   isEndOfSession (userData) {
-    return (userData || '').toLowerCase().indexOf(constants.flow.END_OF_SESSION.toLowerCase()) > -1
+    return (userData || `${constants.flow.END_OF_SESSION}`)
+      .toLowerCase().indexOf(constants.flow.END_OF_SESSION.toLowerCase()) > -1
   }
 
   static getInstance () {

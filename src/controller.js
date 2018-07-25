@@ -4,37 +4,80 @@ import EventEmitter from 'events'
 import _ from 'lodash'
 import Utility from 'node-code-utility'
 import { ControllerLogger } from 'node-logger-extended'
+import sleep from 'sleep-sync'
 
 import USSDModel from './model'
 
 const logger = new ControllerLogger({name: 'ussd'})
 const constants = require('./constants')
 const Model = USSDModel.getInstance()
+const userPredefinedResponse = {}
+const DELAY = 6000
 
 const emitter = new EventEmitter()
+
+const processRequest = (data) => {
+  const mainEventKey = Model.getKeyFromPhone(data.msisdn)
+  const endEventKey = `${mainEventKey}-end`
+  const phone = Model.extractUserPhone(data.msisdn)
+  let USSDParams = data.ussdparams.replace('#', '')
+  const USSDCodes = Utility.is.array(Model.config.ussdCodes) ? Model.config.ussdCodes : []
+
+  USSDCodes.forEach(code => {
+    USSDParams = data.ussdparams.replace(code.replace('#', ''), constants.flow.TRIGGER)
+  })
+
+  const extraCodes = USSDParams.split('*')
+
+  if ((userPredefinedResponse[phone] || []).length === 0 && extraCodes.length > 1) {
+    USSDParams = extraCodes.shift()
+    userPredefinedResponse[phone] = extraCodes
+  }
+
+  Model.processIncoming(data)
+    .then((response) => {
+      if (!response.wait) {
+        emitter.emit(endEventKey, response.raw)
+      }
+    })
+    .catch((error) => {
+      const msg = 'something went wrong while processing #endOfSession'
+      logger.error(msg, error)
+      data.text = msg
+      emitter.emit(endEventKey, data)
+    })
+}
 
 class Controller {
   static start (req, res) {
     const srcData = Object.keys(req.query).length > 0 ? req.query : req.body
     const data = _.cloneDeep(srcData)
 
-    logger.info('initial entry')
-    Model.processIncoming(data)
-      .then((response) => {
-        if (!response.wait) {
-          emitter.emit(Model.getKeyFromPhone(data.msisdn), response.raw)
-        }
-      })
-      .catch((error) => {
-        const msg = 'something went wrong while processing #endOfSession'
-        logger.error(msg, error)
-        data.text = msg
-        emitter.emit(Model.getKeyFromPhone(data.msisdn), data)
-      })
-    const key = Model.getKeyFromPhone(data.msisdn)
-    logger.info(`generated key = ${key}`)
-    emitter.once(key, (eventData) => {
-      data.userdata = (eventData.text || eventData.userData || '').replace(constants.flow.END_OF_SESSION, '')
+    const phone = Model.extractUserPhone(data.msisdn)
+    const mainEventKey = Model.getKeyFromPhone(data.msisdn)
+    const endEventKey = `${mainEventKey}-end`
+    processRequest(data)
+
+    emitter.on(mainEventKey, eventData => {
+      if ((userPredefinedResponse[phone] || []).length > 0) {
+        data.ussdparams = userPredefinedResponse[phone].shift()
+        // delay between calls to rapdidPro to dequeue webhooks
+        sleep(DELAY)
+        processRequest(data)
+      } else {
+        emitter.emit(endEventKey, eventData)
+      }
+    })
+
+    emitter.once(endEventKey, eventData => {
+      emitter.removeAllListeners(mainEventKey)
+
+      data.userdata = (
+        eventData.text ||
+        eventData.userData ||
+        `Unable to process request`
+      ).replace(constants.flow.END_OF_SESSION, '')
+
       data.endofsession = Model.isEndOfSession(eventData.text)
       Model.updateUserSession(data)
       logger.info(`exit session status = ${data.endofsession}`)
@@ -44,13 +87,13 @@ class Controller {
 
   static sendUSSD (req, res) {
     const body = req.body
-    const key = Model.getKeyFromPhone(body.to)
+    const mainEventKey = Model.getKeyFromPhone(body.to)
     const transformed = Model.transformData(body.to, body.text)
     transformed.direction = 'out'
     Model.save(transformed)
       .catch(Utility.simpleErrorHandler.bind(null, false))
-    logger.info(`out going key = ${key}`)
-    emitter.emit(key, body)
+    logger.info(`out going key = ${mainEventKey}`)
+    emitter.emit(mainEventKey, body)
     res.json({msg: 'response received'})
   }
 

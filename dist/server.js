@@ -22,22 +22,23 @@ var _routes2 = _interopRequireDefault(_routes);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var PORT = process.env.PORT || 4040;
+var PORT = process.env.SERVER_PORT || 4040;
 var app = (0, _express2.default)();
 var router = _express2.default.Router([]);
+var env = process.env;
 
 (0, _index2.default)({
-  host: 'http://localhost',
-  port: 5984,
-  db: 'test',
+  host: env.COUCHDB_HOST || 'http://localhost',
+  port: env.COUCHDB_PORT || 5984,
+  db: env.COUCHDB_NAME || 'test',
   auth: {
-    username: 'admin',
-    password: 'admin'
+    username: env.COUCHDB_USER || 'admin',
+    password: env.COUCHDB_PASS || 'admin'
   },
-  rapidProUrl: 'http://localhost:8000',
-  rapidProChannelToken: 'f59a26f6-b8e0-4831-831c-3bf416edcc5c',
-  rapidProAPIToken: '',
-  ussdCodes: ['*35131*22#']
+  rapidProUrl: env.RAPIDPRO_URL || 'http://localhost:8000',
+  rapidProChannelToken: env.RAPIDPRO_CHANNEL_TOKEN || '04702942-a8ea-4a4c-abef-5c277ec45d1b',
+  rapidProAPIToken: env.RAPIDPRO_API_TOKEN || '',
+  ussdCodes: (env.USSD_CODES || '*35131*22#').split(',')
 }, router);
 
 _routes2.default.init(app);

@@ -535,7 +535,7 @@ var Model = function () {
   }, {
     key: 'isEndOfSession',
     value: function isEndOfSession(userData) {
-      return (userData || '').toLowerCase().indexOf(_constants2.default.flow.END_OF_SESSION.toLowerCase()) > -1;
+      return (userData || '' + _constants2.default.flow.END_OF_SESSION).toLowerCase().indexOf(_constants2.default.flow.END_OF_SESSION.toLowerCase()) > -1;
     }
   }], [{
     key: 'loadUserSessions',

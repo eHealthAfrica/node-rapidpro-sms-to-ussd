@@ -16,6 +16,10 @@ var _nodeCodeUtility2 = _interopRequireDefault(_nodeCodeUtility);
 
 var _nodeLoggerExtended = require('node-logger-extended');
 
+var _sleepSync = require('sleep-sync');
+
+var _sleepSync2 = _interopRequireDefault(_sleepSync);
+
 var _model = require('./model');
 
 var _model2 = _interopRequireDefault(_model);
@@ -27,8 +31,40 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var logger = new _nodeLoggerExtended.ControllerLogger({ name: 'ussd' });
 var constants = require('./constants');
 var Model = _model2.default.getInstance();
+var userPredefinedResponse = {};
+var DELAY = 6000;
 
 var emitter = new _events2.default();
+
+var processRequest = function processRequest(data) {
+  var mainEventKey = Model.getKeyFromPhone(data.msisdn);
+  var endEventKey = mainEventKey + '-end';
+  var phone = Model.extractUserPhone(data.msisdn);
+  var USSDParams = data.ussdparams.replace('#', '');
+  var USSDCodes = _nodeCodeUtility2.default.is.array(Model.config.ussdCodes) ? Model.config.ussdCodes : [];
+
+  USSDCodes.forEach(function (code) {
+    USSDParams = data.ussdparams.replace(code.replace('#', ''), constants.flow.TRIGGER);
+  });
+
+  var extraCodes = USSDParams.split('*');
+
+  if ((userPredefinedResponse[phone] || []).length === 0 && extraCodes.length > 1) {
+    USSDParams = extraCodes.shift();
+    userPredefinedResponse[phone] = extraCodes;
+  }
+
+  Model.processIncoming(data).then(function (response) {
+    if (!response.wait) {
+      emitter.emit(endEventKey, response.raw);
+    }
+  }).catch(function (error) {
+    var msg = 'something went wrong while processing #endOfSession';
+    logger.error(msg, error);
+    data.text = msg;
+    emitter.emit(endEventKey, data);
+  });
+};
 
 var Controller = function () {
   function Controller() {
@@ -41,21 +77,27 @@ var Controller = function () {
       var srcData = Object.keys(req.query).length > 0 ? req.query : req.body;
       var data = _lodash2.default.cloneDeep(srcData);
 
-      logger.info('initial entry');
-      Model.processIncoming(data).then(function (response) {
-        if (!response.wait) {
-          emitter.emit(Model.getKeyFromPhone(data.msisdn), response.raw);
+      var phone = Model.extractUserPhone(data.msisdn);
+      var mainEventKey = Model.getKeyFromPhone(data.msisdn);
+      var endEventKey = mainEventKey + '-end';
+      processRequest(data);
+
+      emitter.on(mainEventKey, function (eventData) {
+        if ((userPredefinedResponse[phone] || []).length > 0) {
+          data.ussdparams = userPredefinedResponse[phone].shift();
+          // delay between calls to rapdidPro to dequeue webhooks
+          (0, _sleepSync2.default)(DELAY);
+          processRequest(data);
+        } else {
+          emitter.emit(endEventKey, eventData);
         }
-      }).catch(function (error) {
-        var msg = 'something went wrong while processing #endOfSession';
-        logger.error(msg, error);
-        data.text = msg;
-        emitter.emit(Model.getKeyFromPhone(data.msisdn), data);
       });
-      var key = Model.getKeyFromPhone(data.msisdn);
-      logger.info('generated key = ' + key);
-      emitter.once(key, function (eventData) {
-        data.userdata = (eventData.text || eventData.userData || '').replace(constants.flow.END_OF_SESSION, '');
+
+      emitter.once(endEventKey, function (eventData) {
+        emitter.removeAllListeners(mainEventKey);
+
+        data.userdata = (eventData.text || eventData.userData || 'Unable to process request').replace(constants.flow.END_OF_SESSION, '');
+
         data.endofsession = Model.isEndOfSession(eventData.text);
         Model.updateUserSession(data);
         logger.info('exit session status = ' + data.endofsession);
@@ -66,12 +108,12 @@ var Controller = function () {
     key: 'sendUSSD',
     value: function sendUSSD(req, res) {
       var body = req.body;
-      var key = Model.getKeyFromPhone(body.to);
+      var mainEventKey = Model.getKeyFromPhone(body.to);
       var transformed = Model.transformData(body.to, body.text);
       transformed.direction = 'out';
       Model.save(transformed).catch(_nodeCodeUtility2.default.simpleErrorHandler.bind(null, false));
-      logger.info('out going key = ' + key);
-      emitter.emit(key, body);
+      logger.info('out going key = ' + mainEventKey);
+      emitter.emit(mainEventKey, body);
       res.json({ msg: 'response received' });
     }
   }, {

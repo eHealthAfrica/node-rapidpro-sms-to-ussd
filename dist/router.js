@@ -6,6 +6,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 var Controller = require('./controller');
 var BASE_URL = '/';
+var rapidProEndPoint = process.env.RAPIDPRO_ENDPOINT || 'from-rapid-pro';
 
 var USSDRoutes = function () {
   function USSDRoutes() {
@@ -21,7 +22,7 @@ var USSDRoutes = function () {
 
       router.route(BASE_URL + 'config').get(Controller.getConfig);
 
-      router.route(BASE_URL + 'from-rapid-pro').post(Controller.sendUSSD);
+      router.route('' + BASE_URL + rapidProEndPoint).post(Controller.sendUSSD);
     }
   }]);
 

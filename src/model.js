@@ -1,17 +1,17 @@
-'use strict'
 
-import _ from 'lodash'
-import extend from 'extend'
-import request from 'request-promise'
-import { ModelLogger } from 'node-logger-extended'
-import Utility from 'node-code-utility'
-import Database from 'node-pouchdb-extended'
-import moment from 'moment-timezone'
 
-import constants from './constants'
+import _ from 'lodash';
+import extend from 'extend';
+import request from 'request-promise';
+import { ModelLogger } from 'node-logger-extended';
+import Utility from 'node-code-utility';
+import Database from 'node-pouchdb-extended';
+import moment from 'moment-timezone';
 
-const logger = new ModelLogger({name: 'ussd'})
-const USER_STATE_ID = constants.USER_STATE_ID
+import constants from './constants';
+
+const logger = new ModelLogger({ name: 'ussd' });
+const { USER_STATE_ID } = constants;
 const defaultConfig = {
   timeZone: 'Africa/Lagos',
   host: 'http://localhost',
@@ -19,31 +19,31 @@ const defaultConfig = {
   port: 5984,
   auth: {
     username: '',
-    password: ''
+    password: '',
   },
   rapidProUrl: '',
   rapidProChannelToken: '',
   rapidProAPIToken: '',
-  ussdCodes: []
-}
+  ussdCodes: [],
+};
 
-let config = {}
-let db = null
-let userSessions = {}
-let savingState = false
-let modelInstance = null
+let config = {};
+let db = null;
+let userSessions = {};
+let savingState = false;
+let modelInstance = null;
 
 class Model {
-  constructor () {
+  constructor() {
     if (!Utility.is.object(config)) {
-      logger.info(`class constructor expects Object type passed as arg`)
-      logger.info(`but got ${Object.prototype.toString.call(config)}`)
-      logger.info(`using the following as default config ${JSON.stringify(defaultConfig, null, 2)}`)
+      logger.info('class constructor expects Object type passed as arg');
+      logger.info(`but got ${Object.prototype.toString.call(config)}`);
+      logger.info(`using the following as default config ${JSON.stringify(defaultConfig, null, 2)}`);
     }
   }
 
-  getRapidProUrl (status) {
-    return `${this.config.rapidProUrl}/handlers/external/${status}/${this.config.rapidProChannelToken}/`
+  getRapidProUrl(status) {
+    return `${this.config.rapidProUrl}/handlers/external/${status}/${this.config.rapidProChannelToken}/`;
   }
 
   /**
@@ -57,36 +57,36 @@ class Model {
    * @returns {Object}
    */
 
-  processLastSession (data, response, serverResponse) {
-    const lastResponse = serverResponse[0]
-    const lastRequest = serverResponse[1]
+  processLastSession(data, response, serverResponse) {
+    const lastResponse = serverResponse[0];
+    const lastRequest = serverResponse[1];
 
-    logger.info(`about to process last response (${lastResponse.phone}) and request (${lastResponse.phone})`)
-    logger.info(`last request data was (${lastResponse.userData})`)
-    const today = moment().tz(this.config.timeZone).format('L')
-    const reportDate = moment(lastResponse.createdOn).tz(this.config.timeZone).format('L')
+    logger.info(`about to process last response (${lastResponse.phone}) and request (${lastResponse.phone})`);
+    logger.info(`last request data was (${lastResponse.userData})`);
+    const today = moment().tz(this.config.timeZone).format('L');
+    const reportDate = moment(lastResponse.createdOn).tz(this.config.timeZone).format('L');
 
-    const sessionNotEnded = lastResponse.endOfSession !== undefined && !lastResponse.endOfSession
-    const isNotEntry = (lastRequest.userData || '').trim() !== constants.flow.TRIGGER
-    const isToday = today === reportDate
+    const sessionNotEnded = lastResponse.endOfSession !== undefined && !lastResponse.endOfSession;
+    const isNotEntry = (lastRequest.userData || '').trim() !== constants.flow.TRIGGER;
+    const isToday = today === reportDate;
 
-    logger.info(`sessionNotEnded ${sessionNotEnded}, isNotEntry ${isNotEntry}, isToday ${isToday}`)
+    logger.info(`sessionNotEnded ${sessionNotEnded}, isNotEntry ${isNotEntry}, isToday ${isToday}`);
 
     if (sessionNotEnded && isToday && isNotEntry) {
-      data.awaitContinueResponse = true
-      this.updateUserSession(data)
-      response.wait = false
-      const compiled = _.template(constants.continueFlow.message)
+      data.awaitContinueResponse = true;
+      this.updateUserSession(data);
+      response.wait = false;
+      const compiled = _.template(constants.continueFlow.message);
 
       response.raw = {
         text: compiled(constants.continueFlow.options),
         sessionId: data.sessionId,
-        msisdn: data.msisdn
-      }
+        msisdn: data.msisdn,
+      };
     }
 
-    logger.info(`exiting last session with awaitContinueResponse = ${data.awaitContinueResponse}`)
-    return response
+    logger.info(`exiting last session with awaitContinueResponse = ${data.awaitContinueResponse}`);
+    return response;
   }
 
   /**
@@ -97,55 +97,55 @@ class Model {
    * @param {Object} lastSession
    * @returns {Promise.<T>}
    */
-  processContinueRequest (data, response, lastSession) {
-    logger.info(`about to process continue request and wait = ${lastSession.wait}`)
+  static processContinueRequest(data, response, lastSession) {
+    logger.info(`about to process continue request and wait = ${lastSession.wait}`);
     if (!lastSession.wait) {
-      logger.info('exiting continue request nothing to wait')
-      return Promise.resolve(lastSession)
+      logger.info('exiting continue request nothing to wait');
+      return Promise.resolve(lastSession);
     }
-    const USSDParams = parseInt(data.ussdparams, 10)
-    const continueResponse = parseInt(constants.continueFlow.options.YES, 10)
-    const noContinueResponse = parseInt(constants.continueFlow.options.NO, 10)
-    const wantToContinue = data.awaitContinueResponse && USSDParams === continueResponse
-    const noContinue = data.awaitContinueResponse && USSDParams === noContinueResponse
+    const USSDParams = parseInt(data.ussdparams, 10);
+    const continueResponse = parseInt(constants.continueFlow.options.YES, 10);
+    const noContinueResponse = parseInt(constants.continueFlow.options.NO, 10);
+    const wantToContinue = data.awaitContinueResponse && USSDParams === continueResponse;
+    const noContinue = data.awaitContinueResponse && USSDParams === noContinueResponse;
 
-    logger.info(`processContinueRequest -- awaitContinueResponse = ${data.awaitContinueResponse} USSDParams = ${USSDParams}`)
     if (wantToContinue) {
-      logger.info('wantToContinue')
-      return this.getLatest(data.msisdn, 'out', {})
-        .then(serverResponse => {
-          logger.info('wantToContinue result point')
-          response.wait = false
-          serverResponse.sessionId = data.sessionId
-          serverResponse.awaitContinueResponse = false
-          serverResponse.msisdn = data.msisdn
-          this.updateUserSession(serverResponse)
-          response.raw = serverResponse
-          return response
-        })
+      logger.info('wantToContinue');
+      return Model.getLatest(data.msisdn, 'out', {})
+        .then((serverResponse) => {
+          logger.info('wantToContinue result point');
+          response.wait = false;
+          serverResponse.sessionId = data.sessionId;
+          serverResponse.awaitContinueResponse = false;
+          serverResponse.msisdn = data.msisdn;
+          Model.updateUserSession(serverResponse);
+          response.raw = serverResponse;
+          return response;
+        });
     }
 
     if (noContinue) {
-      logger.info('noContinue')
-      data.ussdparams = constants.flow.TRIGGER
-      data.awaitContinueResponse = false
-      this.updateUserSession(data)
+      logger.info('noContinue');
+      data.ussdparams = constants.flow.TRIGGER;
+      data.awaitContinueResponse = false;
+      Model.updateUserSession(data);
+      return Promise.resolve(data);
     }
-    return Promise.resolve(lastSession)
+    return Promise.resolve(lastSession);
   }
 
-  buildKeys (mappedKey, options) {
-    options.descending = options.descending === undefined ? true : options.descending
+  static buildKeys(mappedKey, options) {
+    options.descending = options.descending === undefined ? true : options.descending;
     // cast descending to string to compensate for url query string types
 
     if (options.descending.toString() === 'true') {
-      options.startkey = [mappedKey, {}]
-      options.endkey = [mappedKey]
+      options.startkey = [mappedKey, {}];
+      options.endkey = [mappedKey];
     }
 
     if (options.descending.toString() === 'false') {
-      options.startkey = [mappedKey]
-      options.endkey = [mappedKey, {}]
+      options.startkey = [mappedKey];
+      options.endkey = [mappedKey, {}];
     }
   }
 
@@ -154,21 +154,21 @@ class Model {
    * @param {Object} doc
    * @returns {Promise.<T>}
    */
-  save (doc) {
-    doc.docType = 'ussd'
-    doc.phone = Utility.reformatPhoneNumber(doc.phone)
-    doc.endOfSession = this.isEndOfSession(doc.userData)
+  static save(doc) {
+    doc.docType = 'ussd';
+    doc.phone = Utility.reformatPhoneNumber(doc.phone);
+    doc.endOfSession = this.isEndOfSession(doc.userData);
     if (config.beforeSave && Utility.is.function(config.beforeSave)) {
       try {
         return config.beforeSave(doc)
-          .then(db.save)
+          .then(db.save);
       } catch (e) {
-        logger.debug(e)
-        return db.save(doc)
+        logger.debug(e);
+        return db.save(doc);
       }
     }
 
-    return db.save(doc)
+    return db.save(doc);
   }
 
   /**
@@ -177,14 +177,14 @@ class Model {
    * @param {String} phone
    * @returns {String}
    */
-  getKeyFromPhone (phone) {
-    phone = this.extractUserPhone(phone)
-    return `ussd-session-${phone}`
+  static getKeyFromPhone(phone) {
+    phone = this.extractUserPhone(phone);
+    return `ussd-session-${phone}`;
   }
 
-  getUserState (phone) {
-    phone = this.extractUserPhone(phone)
-    return userSessions[phone] || {}
+  static getUserState(phone) {
+    phone = this.extractUserPhone(phone);
+    return userSessions[phone] || {};
   }
 
   /**
@@ -199,31 +199,31 @@ class Model {
    * @returns {Promise.<T>}
    */
 
-  processIncoming (data) {
-    logger.info('processIncoming started')
-    const original = _.cloneDeep(data)
-    data = this.updateUserSession(data)
-    const response = { wait: true, raw: data }
+  processIncoming(data) {
+    logger.info('processIncoming started');
+    const original = _.cloneDeep(data);
+    data = Model.updateUserSession(data);
+    const response = { wait: true, raw: data };
 
-    data.ussdparams = this.config.USSD_CODES ? this.setupCode(data) : data.ussdparams
+    data.ussdparams = this.config.USSD_CODES ? this.setupCode(data) : data.ussdparams;
 
     if (Object.keys(data).length > 0) {
-      const transformed = this.transformData(data.msisdn, data.ussdparams)
-      transformed.direction = 'in'
-      this.save(transformed)
-        .catch(Utility.simpleErrorHandler.bind(null, false))
+      const transformed = Model.transformData(data.msisdn, data.ussdparams);
+      transformed.direction = 'in';
+      this.constructor.save(transformed)
+        .catch(Utility.simpleErrorHandler.bind(null, false));
 
       return this.lastSessionCheck(data, response)
-        .then(this.processContinueRequest.bind(null, data, response))
-        .then(updatedResponse => {
+        .then(Model.processContinueRequest.bind(null, data, response))
+        .then((updatedResponse) => {
           if (!updatedResponse.wait) {
-            return updatedResponse
+            return updatedResponse;
           }
-          return this.notifyRapidPro(original, response)
-        })
+          return this.notifyRapidPro(original, response);
+        });
     }
-    response.wait = false
-    return Promise.resolve(response)
+    response.wait = false;
+    return Promise.resolve(response);
   }
 
   /**
@@ -232,16 +232,16 @@ class Model {
    * @param {Object} response
    * @returns {Promise.<T>}
    */
-  lastSessionCheck (data, response) {
+  lastSessionCheck(data, response) {
     if (data.ussdparams === constants.flow.TRIGGER) {
       const promises = [
-        this.getLatest(data.msisdn, 'out', {}),
-        this.getLatest(data.msisdn, 'in', {})
-      ]
+        Model.getLatest(data.msisdn, 'out', {}),
+        Model.getLatest(data.msisdn, 'in', {}),
+      ];
       return Promise.all(promises)
-        .then(this.processLastSession.bind(this, data, response))
+        .then(this.processLastSession.bind(this, data, response));
     }
-    return Promise.resolve(response)
+    return Promise.resolve(response);
   }
 
   /**
@@ -251,51 +251,51 @@ class Model {
    * @param {Object} response
    * @returns {Promise.<T>}
    */
-  notifyRapidPro (data, response) {
-    logger.info(`about to send to rapid-pro for contact = ${data.msisdn}`)
-    const rapidProURL = this.getRapidProUrl('received')
-    data.ussdparams = data.ussdparams === '*' ? constants.flow.TRIGGER : data.ussdparams
+  notifyRapidPro(data, response) {
+    logger.info(`about to send to rapid-pro for contact = ${data.msisdn}`);
+    const rapidProURL = this.getRapidProUrl('received');
+    data.ussdparams = data.ussdparams === '*' ? constants.flow.TRIGGER : data.ussdparams;
     const sendOptions = {
       url: rapidProURL,
       form: {
         from: Utility.reformatPhoneNumber(data.msisdn),
         text: this.setupCode(data),
-        date: new Date(moment().tz(this.config.timeZone).format()).toJSON()
-      }
-    }
+        date: new Date(moment().tz(this.config.timeZone).format()).toJSON(),
+      },
+    };
 
     return request.post(sendOptions)
-      .then(() => { return response })
+      .then(() => response)
       .catch((error) => {
-        response.wait = false
-        data.text = error.body || error.message || 'could not process request due to unknown error'
-        logger.error('failed from rapid pro', error)
-        return response
-      })
+        response.wait = false;
+        data.text = error.body || error.message || 'could not process request due to unknown error';
+        logger.error('failed from rapid pro', error);
+        return response;
+      });
   }
 
-  extractUserPhone (phone) {
-    return (phone || '').replace('+', '').replace('234', '')
+  static extractUserPhone(phone) {
+    return (phone || '').replace('+', '').replace('234', '');
   }
 
-  updateUserSession (data) {
-    const phone = this.extractUserPhone(data.msisdn || data.phone)
+  static updateUserSession(data) {
+    const phone = Model.extractUserPhone(data.msisdn || data.phone);
     const currentData = {
-      awaitContinueResponse: (userSessions[phone] || {}).awaitContinueResponse
-    }
-    userSessions[phone] = extend(true, currentData, data)
-    return userSessions[phone]
+      awaitContinueResponse: (userSessions[phone] || {}).awaitContinueResponse,
+    };
+    userSessions[phone] = extend(true, currentData, data);
+    return userSessions[phone];
   }
 
-  transformData (phone, userData) {
-    const userState = this.getUserState(phone)
+  static transformData(phone, userData) {
+    const userState = this.getUserState(phone);
     return {
       phone,
       userData,
       network: userState.network,
       sessionId: userState.sessionId || userState.sessionid,
-      endOfSession: this.isEndOfSession(userData)
-    }
+      endOfSession: this.isEndOfSession(userData),
+    };
   }
 
   /**
@@ -304,12 +304,12 @@ class Model {
    * @returns {void}
    */
 
-  static loadUserSessions () {
+  static loadUserSessions() {
     db.get(USER_STATE_ID)
       .then((response) => {
-        userSessions = response
+        userSessions = response;
       })
-      .catch(Utility.simpleErrorHandler.bind(null, false))
+      .catch(Utility.simpleErrorHandler.bind(null, false));
   }
 
   /**
@@ -317,22 +317,22 @@ class Model {
    *
    * @returns {void}
    */
-  static saveUserSessions () {
+  static saveUserSessions() {
     if (!savingState) {
-      logger.info('saving user session data ...')
-      savingState = true
-      userSessions._id = USER_STATE_ID
-      userSessions.docType = USER_STATE_ID
+      logger.info('saving user session data ...');
+      savingState = true;
+      userSessions._id = USER_STATE_ID;
+      userSessions.docType = USER_STATE_ID;
       db.save(userSessions)
         .then((response) => {
-          userSessions._rev = response._rev
-          savingState = false
+          userSessions._rev = response._rev;
+          savingState = false;
         })
         .catch((error) => {
-          logger.info('user session data saving failed')
-          savingState = false
-          logger.failed(null, null, error)
-        })
+          logger.info('user session data saving failed');
+          savingState = false;
+          logger.failed(null, null, error);
+        });
     }
   }
 
@@ -341,13 +341,13 @@ class Model {
    * @param {Object} data
    * @returns {String}
    */
-  setupCode (data) {
-    data.ussdparams = data.ussdparams.replace('#', '')
-    this.config.ussdCodes = Utility.is.array(this.config.ussdCodes) ? this.config.ussdCodes : []
-    this.config.ussdCodes.forEach(code => {
-      data.ussdparams = data.ussdparams.replace(code.replace('#', ''), constants.flow.TRIGGER)
-    })
-    return data.ussdparams
+  setupCode(data) {
+    data.ussdparams = data.ussdparams.replace('#', '');
+    this.config.ussdCodes = Utility.is.array(this.config.ussdCodes) ? this.config.ussdCodes : [];
+    this.config.ussdCodes.forEach((code) => {
+      data.ussdparams = data.ussdparams.replace(code.replace('#', ''), constants.flow.TRIGGER);
+    });
+    return data.ussdparams;
   }
 
   /**
@@ -363,10 +363,10 @@ class Model {
    * @param {Object} options
    * @returns {Promise.<T>}
    */
-  all (options) {
-    options = Utility.is.object(options) ? options : {}
-    const params = extend({}, options)
-    return db.getView(constants.views.ALL, params)
+  static all(options) {
+    options = Utility.is.object(options) ? options : {};
+    const params = extend({}, options);
+    return db.getView(constants.views.ALL, params);
   }
 
   /**
@@ -380,12 +380,12 @@ class Model {
    * @property {String} options.key
    * @returns {Promise.<T>}
    */
-  getByPhones (phones, options) {
-    options = Utility.is.object(options) ? options : {}
-    phones = Utility.is.array(phones) ? phones : []
-    phones = phones.map(phone => Utility.reformatPhoneNumber(phone))
-    const params = extend({ keys: phones, include_docs: true }, options)
-    return db.getView(constants.views.BY_PHONE, params)
+  static getByPhones(phones, options) {
+    options = Utility.is.object(options) ? options : {};
+    phones = Utility.is.array(phones) ? phones : [];
+    phones = phones.map(phone => Utility.reformatPhoneNumber(phone));
+    const params = extend({ keys: phones, include_docs: true }, options);
+    return db.getView(constants.views.BY_PHONE, params);
   }
 
   /**
@@ -401,12 +401,12 @@ class Model {
    * @property {String} options.key
    * @returns {Promise.<T>}
    */
-  getByCampaignPhones (campaignId, phones, options) {
-    options = Utility.is.object(options) ? options : {}
-    phones = Utility.is.array(phones) ? phones : []
-    phones = phones.map(phone => [campaignId, Utility.reformatPhoneNumber(phone)])
-    const params = extend({ keys: phones, include_docs: true }, options)
-    return db.getView(constants.views.BY_CAMPAIGN_PHONE, params)
+  static getByCampaignPhones(campaignId, phones, options) {
+    options = Utility.is.object(options) ? options : {};
+    phones = Utility.is.array(phones) ? phones : [];
+    phones = phones.map(phone => [campaignId, Utility.reformatPhoneNumber(phone)]);
+    const params = extend({ keys: phones, include_docs: true }, options);
+    return db.getView(constants.views.BY_CAMPAIGN_PHONE, params);
   }
 
   /**
@@ -422,12 +422,12 @@ class Model {
    * @property {String} options.key
    * @returns {Promise.<T>}
    */
-  getByPhonesDirection (direction, phones, options) {
-    options = Utility.is.object(options) ? options : {}
-    phones = Utility.is.array(phones) ? phones : []
-    phones = phones.map(phone => `${Utility.reformatPhoneNumber(phone)}-${direction}`)
-    const params = extend({ keys: phones, include_docs: true }, options)
-    return db.getView(constants.views.BY_PHONE_DIRECTION, params)
+  static getByPhonesDirection(direction, phones, options) {
+    options = Utility.is.object(options) ? options : {};
+    phones = Utility.is.array(phones) ? phones : [];
+    phones = phones.map(phone => `${Utility.reformatPhoneNumber(phone)}-${direction}`);
+    const params = extend({ keys: phones, include_docs: true }, options);
+    return db.getView(constants.views.BY_PHONE_DIRECTION, params);
   }
 
   /**
@@ -443,13 +443,13 @@ class Model {
    * @property {String} options.key
    * @returns {Promise.<T>}
    */
-  getByPhoneDirectionWithDate (direction, phone, options) {
-    options = Utility.is.object(options) ? options : {}
-    phone = Utility.is.string(phone) ? phone : ''
-    const mappedKey = `${Utility.reformatPhoneNumber(phone)}-${direction}`
-    const params = extend(true, { include_docs: true, descending: false }, options)
-    this.buildKeys(mappedKey, params)
-    return db.getView(constants.views.BY_PHONE_DIRECTION_DATE, params)
+  static getByPhoneDirectionWithDate(direction, phone, options) {
+    options = Utility.is.object(options) ? options : {};
+    phone = Utility.is.string(phone) ? phone : '';
+    const mappedKey = `${Utility.reformatPhoneNumber(phone)}-${direction}`;
+    const params = extend(true, { include_docs: true, descending: false }, options);
+    Model.buildKeys(mappedKey, params);
+    return db.getView(constants.views.BY_PHONE_DIRECTION_DATE, params);
   }
 
   /**
@@ -466,17 +466,17 @@ class Model {
    * @returns {Promise<Object>}
    */
 
-  getLatest (phone, direction, options) {
-    phone = Utility.is.string(phone) ? phone : ''
-    direction = Utility.is.string(direction) ? direction : 'out'
-    options = Utility.is.object(options) ? options : {}
+  static getLatest(phone, direction, options) {
+    phone = Utility.is.string(phone) ? phone : '';
+    direction = Utility.is.string(direction) ? direction : 'out';
+    options = Utility.is.object(options) ? options : {};
     options = extend(true, {
       include_docs: true,
       descending: true,
-      limit: 1
-    }, options)
+      limit: 1,
+    }, options);
     return this.getByPhoneDirectionWithDate(direction, phone, options)
-      .then(response => (response.rows[0] || {}).doc || {})
+      .then(response => (response.rows[0] || {}).doc || {});
   }
 
   /**
@@ -486,26 +486,26 @@ class Model {
    * @param {String} userData
    * @returns {Boolean}
    */
-  isEndOfSession (userData) {
+  static isEndOfSession(userData) {
     return (userData || `${constants.flow.END_OF_SESSION}`)
-      .toLowerCase().indexOf(constants.flow.END_OF_SESSION.toLowerCase()) > -1
+      .toLowerCase().indexOf(constants.flow.END_OF_SESSION.toLowerCase()) > -1;
   }
 
-  static getInstance () {
+  static getInstance() {
     if (!modelInstance) {
-      modelInstance = new Model()
+      modelInstance = new Model();
     }
-    return modelInstance
+    return modelInstance;
   }
 
-  static setupConfig (configMap) {
-    const Model = this.getInstance()
-    configMap = Utility.is.object(configMap) ? configMap : {}
-    configMap = extend(true, defaultConfig, configMap)
-    Model.config = configMap
-    config = configMap
-    db = Database.getInstance(configMap)
+  static setupConfig(configMap) {
+    const ModelInst = this.getInstance();
+    configMap = Utility.is.object(configMap) ? configMap : {};
+    configMap = extend(true, defaultConfig, configMap);
+    ModelInst.config = configMap;
+    config = configMap;
+    db = Database.getInstance(configMap);
   }
 }
 
-module.exports = Model
+module.exports = Model;

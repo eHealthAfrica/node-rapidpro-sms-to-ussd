@@ -25,7 +25,9 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var PORT = process.env.SERVER_PORT || 4040;
 var app = (0, _express2.default)();
 var router = _express2.default.Router([]);
-var env = process.env;
+var _process = process,
+    env = _process.env;
+
 
 (0, _index2.default)({
   host: env.COUCHDB_HOST || 'http://localhost',

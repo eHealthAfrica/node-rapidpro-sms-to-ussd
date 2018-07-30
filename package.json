@@ -10,7 +10,8 @@
     "start": "nodemon src/server.js --dev --exec babel-node --presets es2015,stage-2",
     "prestart": "npm run build",
     "build": "npx babel src --out-dir dist",
-    "lint": "standard | snazzy --format --verbose",
+    "lint": "eslint src",
+    "lint-fix": "eslint --fix src",
     "prepublish": "npm run build",
     "prebuild": "npm run lint"
   },
@@ -21,6 +22,9 @@
     "babel-preset-env": "^1.6.1",
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb-base": "^13.0.0",
+    "eslint-plugin-import": "^2.13.0",
     "jest": "^23.1.0",
     "snazzy": "^7.1.1",
     "standard": "^11.0.1"

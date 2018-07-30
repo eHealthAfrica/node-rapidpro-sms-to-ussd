@@ -1,23 +1,24 @@
-'use strict'
 
-import USSDModel from './model'
-import Utility from 'node-code-utility'
-import CouchDBBootstrap from 'couchdb-bootstrap-extended'
-import path from 'path'
 
-const APP_ROOT = path.join(path.resolve(__dirname, '../'))
-module.exports = function (configMap, router) {
-  configMap = Utility.is.object(configMap) ? configMap : {}
-  USSDModel.setupConfig(configMap)
+import Utility from 'node-code-utility';
+import CouchDBBootstrap from 'couchdb-bootstrap-extended';
+import path from 'path';
+import USSDModel from './model';
+import { init } from './router';
 
-  configMap.couchdbFolderPath = path.join(APP_ROOT, 'couchdb')
+const APP_ROOT = path.join(path.resolve(__dirname, '../'));
+module.exports = (configMapVar, router) => {
+  const configMap = Utility.is.object(configMapVar) ? configMapVar : {};
+  USSDModel.setupConfig(configMap);
+
+  configMap.couchdbFolderPath = path.join(APP_ROOT, 'couchdb');
   configMap.dbOptions = {
     src: 'ussd-records',
-    target: configMap.db
-  }
-  const bootstrap = CouchDBBootstrap.getInstance(configMap)
-  bootstrap.runAllSetup()
+    target: configMap.db,
+  };
+  const bootstrap = CouchDBBootstrap.getInstance(configMap);
+  bootstrap.runAllSetup();
 
-  require('./router').init(router)
-  return router
-}
+  init(router);
+  return router;
+};

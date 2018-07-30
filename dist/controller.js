@@ -30,6 +30,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 var logger = new _nodeLoggerExtended.ControllerLogger({ name: 'ussd' });
 var constants = require('./constants');
+
 var Model = _model2.default.getInstance();
 var userPredefinedResponse = {};
 var DELAY = 6000;
@@ -108,6 +109,7 @@ var Controller = function () {
     key: 'sendUSSD',
     value: function sendUSSD(req, res) {
       var body = req.body;
+
       var mainEventKey = Model.getKeyFromPhone(body.to);
       var transformed = Model.transformData(body.to, body.text);
       transformed.direction = 'out';
@@ -148,6 +150,7 @@ var Controller = function () {
     value: function getByCampaignPhones(req, res) {
       var options = req.query || {};
       var campaignId = req.params.campaignId;
+
       var phones = (options.phones || '').split(',');
       delete options.phones;
       Model.getByCampaignPhones(campaignId, phones, options).then(function (response) {
@@ -161,6 +164,7 @@ var Controller = function () {
     value: function getByPhonesDirection(req, res) {
       var options = req.query || {};
       var direction = req.params.direction;
+
       var phones = (options.phones || '').split(',');
       delete options.phones;
       Model.getByPhonesDirection(direction, phones, options).then(function (response) {
@@ -175,6 +179,7 @@ var Controller = function () {
       var options = req.query || {};
       var direction = req.params.direction;
       var phone = req.params.phone;
+
       Model.getByPhoneDirectionWithDate(direction, phone, options).then(function (response) {
         return res.json(response);
       }).catch(function (error) {

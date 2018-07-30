@@ -38,6 +38,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 var logger = new _nodeLoggerExtended.ModelLogger({ name: 'ussd' });
 var USER_STATE_ID = _constants2.default.USER_STATE_ID;
+
 var defaultConfig = {
   timeZone: 'Africa/Lagos',
   host: 'http://localhost',
@@ -131,10 +132,131 @@ var Model = function () {
      */
 
   }, {
-    key: 'processContinueRequest',
-    value: function processContinueRequest(data, response, lastSession) {
+    key: 'processIncoming',
+
+
+    /**
+     * Process user resquest and determine response
+     *
+     * @param {Object} data
+     * @property {String} msisdn - phone number
+     * @property {String} network
+     * @property {String} sessionId
+     * @property {String} ussdparams - message
+     * @property {Boolean} endofsession
+     * @returns {Promise.<T>}
+     */
+
+    value: function processIncoming(data) {
       var _this = this;
 
+      logger.info('processIncoming started');
+      var original = _lodash2.default.cloneDeep(data);
+      data = Model.updateUserSession(data);
+      var response = { wait: true, raw: data };
+
+      data.ussdparams = this.config.USSD_CODES ? this.setupCode(data) : data.ussdparams;
+
+      if (Object.keys(data).length > 0) {
+        var transformed = Model.transformData(data.msisdn, data.ussdparams);
+        transformed.direction = 'in';
+        this.save(transformed).catch(_nodeCodeUtility2.default.simpleErrorHandler.bind(null, false));
+
+        return this.lastSessionCheck(data, response).then(Model.processContinueRequest.bind(null, data, response)).then(function (updatedResponse) {
+          if (!updatedResponse.wait) {
+            return updatedResponse;
+          }
+          return _this.notifyRapidPro(original, response);
+        });
+      }
+      response.wait = false;
+      return Promise.resolve(response);
+    }
+
+    /**
+     * checks last session and determine if it was completed or interrupted
+     * @param {Object} data
+     * @param {Object} response
+     * @returns {Promise.<T>}
+     */
+
+  }, {
+    key: 'lastSessionCheck',
+    value: function lastSessionCheck(data, response) {
+      if (data.ussdparams === _constants2.default.flow.TRIGGER) {
+        var promises = [Model.getLatest(data.msisdn, 'out', {}), Model.getLatest(data.msisdn, 'in', {})];
+        return Promise.all(promises).then(this.processLastSession.bind(this, data, response));
+      }
+      return Promise.resolve(response);
+    }
+
+    /**
+     * will pass message data.ussdparams to rapidPro server
+     *
+     * @param {Object} data
+     * @param {Object} response
+     * @returns {Promise.<T>}
+     */
+
+  }, {
+    key: 'notifyRapidPro',
+    value: function notifyRapidPro(data, response) {
+      logger.info('about to send to rapid-pro for contact = ' + data.msisdn);
+      var rapidProURL = this.getRapidProUrl('received');
+      data.ussdparams = data.ussdparams === '*' ? _constants2.default.flow.TRIGGER : data.ussdparams;
+      var sendOptions = {
+        url: rapidProURL,
+        form: {
+          from: _nodeCodeUtility2.default.reformatPhoneNumber(data.msisdn),
+          text: this.setupCode(data),
+          date: new Date((0, _momentTimezone2.default)().tz(this.config.timeZone).format()).toJSON()
+        }
+      };
+
+      return _requestPromise2.default.post(sendOptions).then(function () {
+        return response;
+      }).catch(function (error) {
+        response.wait = false;
+        data.text = error.body || error.message || 'could not process request due to unknown error';
+        logger.error('failed from rapid pro', error);
+        return response;
+      });
+    }
+  }, {
+    key: 'setupCode',
+
+
+    /**
+     *
+     * @param {Object} data
+     * @returns {String}
+     */
+    value: function setupCode(data) {
+      data.ussdparams = data.ussdparams.replace('#', '');
+      this.config.ussdCodes = _nodeCodeUtility2.default.is.array(this.config.ussdCodes) ? this.config.ussdCodes : [];
+      this.config.ussdCodes.forEach(function (code) {
+        data.ussdparams = data.ussdparams.replace(code.replace('#', ''), _constants2.default.flow.TRIGGER);
+      });
+      return data.ussdparams;
+    }
+
+    /**
+     * gets all ussd entries in the db
+     *
+     * {Object} options
+     * {Boolean} options.include_docs
+     * {Number} options.limit,
+     * {Boolean} options.descending,
+     * {Array} options.keys,
+     * {String} options.key
+     *
+     * @param {Object} options
+     * @returns {Promise.<T>}
+     */
+
+  }], [{
+    key: 'processContinueRequest',
+    value: function processContinueRequest(data, response, lastSession) {
       logger.info('about to process continue request and wait = ' + lastSession.wait);
       if (!lastSession.wait) {
         logger.info('exiting continue request nothing to wait');
@@ -146,16 +268,15 @@ var Model = function () {
       var wantToContinue = data.awaitContinueResponse && USSDParams === continueResponse;
       var noContinue = data.awaitContinueResponse && USSDParams === noContinueResponse;
 
-      logger.info('processContinueRequest -- awaitContinueResponse = ' + data.awaitContinueResponse + ' USSDParams = ' + USSDParams);
       if (wantToContinue) {
         logger.info('wantToContinue');
-        return this.getLatest(data.msisdn, 'out', {}).then(function (serverResponse) {
+        return Model.getLatest(data.msisdn, 'out', {}).then(function (serverResponse) {
           logger.info('wantToContinue result point');
           response.wait = false;
           serverResponse.sessionId = data.sessionId;
           serverResponse.awaitContinueResponse = false;
           serverResponse.msisdn = data.msisdn;
-          _this.updateUserSession(serverResponse);
+          Model.updateUserSession(serverResponse);
           response.raw = serverResponse;
           return response;
         });
@@ -165,7 +286,8 @@ var Model = function () {
         logger.info('noContinue');
         data.ussdparams = _constants2.default.flow.TRIGGER;
         data.awaitContinueResponse = false;
-        this.updateUserSession(data);
+        Model.updateUserSession(data);
+        return Promise.resolve(data);
       }
       return Promise.resolve(lastSession);
     }
@@ -229,96 +351,6 @@ var Model = function () {
       phone = this.extractUserPhone(phone);
       return userSessions[phone] || {};
     }
-
-    /**
-     * Process user resquest and determine response
-     *
-     * @param {Object} data
-     * @property {String} msisdn - phone number
-     * @property {String} network
-     * @property {String} sessionId
-     * @property {String} ussdparams - message
-     * @property {Boolean} endofsession
-     * @returns {Promise.<T>}
-     */
-
-  }, {
-    key: 'processIncoming',
-    value: function processIncoming(data) {
-      var _this2 = this;
-
-      logger.info('processIncoming started');
-      var original = _lodash2.default.cloneDeep(data);
-      data = this.updateUserSession(data);
-      var response = { wait: true, raw: data };
-
-      data.ussdparams = this.config.USSD_CODES ? this.setupCode(data) : data.ussdparams;
-
-      if (Object.keys(data).length > 0) {
-        var transformed = this.transformData(data.msisdn, data.ussdparams);
-        transformed.direction = 'in';
-        this.save(transformed).catch(_nodeCodeUtility2.default.simpleErrorHandler.bind(null, false));
-
-        return this.lastSessionCheck(data, response).then(this.processContinueRequest.bind(null, data, response)).then(function (updatedResponse) {
-          if (!updatedResponse.wait) {
-            return updatedResponse;
-          }
-          return _this2.notifyRapidPro(original, response);
-        });
-      }
-      response.wait = false;
-      return Promise.resolve(response);
-    }
-
-    /**
-     * checks last session and determine if it was completed or interrupted
-     * @param {Object} data
-     * @param {Object} response
-     * @returns {Promise.<T>}
-     */
-
-  }, {
-    key: 'lastSessionCheck',
-    value: function lastSessionCheck(data, response) {
-      if (data.ussdparams === _constants2.default.flow.TRIGGER) {
-        var promises = [this.getLatest(data.msisdn, 'out', {}), this.getLatest(data.msisdn, 'in', {})];
-        return Promise.all(promises).then(this.processLastSession.bind(this, data, response));
-      }
-      return Promise.resolve(response);
-    }
-
-    /**
-     * will pass message data.ussdparams to rapidPro server
-     *
-     * @param {Object} data
-     * @param {Object} response
-     * @returns {Promise.<T>}
-     */
-
-  }, {
-    key: 'notifyRapidPro',
-    value: function notifyRapidPro(data, response) {
-      logger.info('about to send to rapid-pro for contact = ' + data.msisdn);
-      var rapidProURL = this.getRapidProUrl('received');
-      data.ussdparams = data.ussdparams === '*' ? _constants2.default.flow.TRIGGER : data.ussdparams;
-      var sendOptions = {
-        url: rapidProURL,
-        form: {
-          from: _nodeCodeUtility2.default.reformatPhoneNumber(data.msisdn),
-          text: this.setupCode(data),
-          date: new Date((0, _momentTimezone2.default)().tz(this.config.timeZone).format()).toJSON()
-        }
-      };
-
-      return _requestPromise2.default.post(sendOptions).then(function () {
-        return response;
-      }).catch(function (error) {
-        response.wait = false;
-        data.text = error.body || error.message || 'could not process request due to unknown error';
-        logger.error('failed from rapid pro', error);
-        return response;
-      });
-    }
   }, {
     key: 'extractUserPhone',
     value: function extractUserPhone(phone) {
@@ -327,7 +359,7 @@ var Model = function () {
   }, {
     key: 'updateUserSession',
     value: function updateUserSession(data) {
-      var phone = this.extractUserPhone(data.msisdn || data.phone);
+      var phone = Model.extractUserPhone(data.msisdn || data.phone);
       var currentData = {
         awaitContinueResponse: (userSessions[phone] || {}).awaitContinueResponse
       };
@@ -354,37 +386,37 @@ var Model = function () {
      */
 
   }, {
-    key: 'setupCode',
-
-
-    /**
-     *
-     * @param {Object} data
-     * @returns {String}
-     */
-    value: function setupCode(data) {
-      data.ussdparams = data.ussdparams.replace('#', '');
-      this.config.ussdCodes = _nodeCodeUtility2.default.is.array(this.config.ussdCodes) ? this.config.ussdCodes : [];
-      this.config.ussdCodes.forEach(function (code) {
-        data.ussdparams = data.ussdparams.replace(code.replace('#', ''), _constants2.default.flow.TRIGGER);
-      });
-      return data.ussdparams;
+    key: 'loadUserSessions',
+    value: function loadUserSessions() {
+      db.get(USER_STATE_ID).then(function (response) {
+        userSessions = response;
+      }).catch(_nodeCodeUtility2.default.simpleErrorHandler.bind(null, false));
     }
 
     /**
-     * gets all ussd entries in the db
+     * saves current session to db via cron
      *
-     * {Object} options
-     * {Boolean} options.include_docs
-     * {Number} options.limit,
-     * {Boolean} options.descending,
-     * {Array} options.keys,
-     * {String} options.key
-     *
-     * @param {Object} options
-     * @returns {Promise.<T>}
+     * @returns {void}
      */
 
+  }, {
+    key: 'saveUserSessions',
+    value: function saveUserSessions() {
+      if (!savingState) {
+        logger.info('saving user session data ...');
+        savingState = true;
+        userSessions._id = USER_STATE_ID;
+        userSessions.docType = USER_STATE_ID;
+        db.save(userSessions).then(function (response) {
+          userSessions._rev = response._rev;
+          savingState = false;
+        }).catch(function (error) {
+          logger.info('user session data saving failed');
+          savingState = false;
+          logger.failed(null, null, error);
+        });
+      }
+    }
   }, {
     key: 'all',
     value: function all(options) {
@@ -490,7 +522,7 @@ var Model = function () {
       phone = _nodeCodeUtility2.default.is.string(phone) ? phone : '';
       var mappedKey = _nodeCodeUtility2.default.reformatPhoneNumber(phone) + '-' + direction;
       var params = (0, _extend2.default)(true, { include_docs: true, descending: false }, options);
-      this.buildKeys(mappedKey, params);
+      Model.buildKeys(mappedKey, params);
       return db.getView(_constants2.default.views.BY_PHONE_DIRECTION_DATE, params);
     }
 
@@ -537,38 +569,6 @@ var Model = function () {
     value: function isEndOfSession(userData) {
       return (userData || '' + _constants2.default.flow.END_OF_SESSION).toLowerCase().indexOf(_constants2.default.flow.END_OF_SESSION.toLowerCase()) > -1;
     }
-  }], [{
-    key: 'loadUserSessions',
-    value: function loadUserSessions() {
-      db.get(USER_STATE_ID).then(function (response) {
-        userSessions = response;
-      }).catch(_nodeCodeUtility2.default.simpleErrorHandler.bind(null, false));
-    }
-
-    /**
-     * saves current session to db via cron
-     *
-     * @returns {void}
-     */
-
-  }, {
-    key: 'saveUserSessions',
-    value: function saveUserSessions() {
-      if (!savingState) {
-        logger.info('saving user session data ...');
-        savingState = true;
-        userSessions._id = USER_STATE_ID;
-        userSessions.docType = USER_STATE_ID;
-        db.save(userSessions).then(function (response) {
-          userSessions._rev = response._rev;
-          savingState = false;
-        }).catch(function (error) {
-          logger.info('user session data saving failed');
-          savingState = false;
-          logger.failed(null, null, error);
-        });
-      }
-    }
   }, {
     key: 'getInstance',
     value: function getInstance() {
@@ -580,10 +580,10 @@ var Model = function () {
   }, {
     key: 'setupConfig',
     value: function setupConfig(configMap) {
-      var Model = this.getInstance();
+      var ModelInst = this.getInstance();
       configMap = _nodeCodeUtility2.default.is.object(configMap) ? configMap : {};
       configMap = (0, _extend2.default)(true, defaultConfig, configMap);
-      Model.config = configMap;
+      ModelInst.config = configMap;
       config = configMap;
       db = _nodePouchdbExtended2.default.getInstance(configMap);
     }

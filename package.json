@@ -26,6 +26,7 @@
     "eslint-config-airbnb-base": "^13.0.0",
     "eslint-plugin-import": "^2.13.0",
     "jest": "^23.1.0",
+    "pre-commit": "^1.2.2",
     "snazzy": "^7.1.1",
     "standard": "^11.0.1"
   },
@@ -60,5 +61,8 @@
     "request-promise": "^4.2.2",
     "sleep-sync": "^2.1.1",
     "zlib": "^1.0.5"
-  }
+  },
+  "pre-commit": [
+    "lint"
+  ]
 }

@@ -1,0 +1,14 @@
+language: node_js
+node_js:
+- '8.10'
+cache:
+  directories:
+  - "$HOME/.cache"
+  - "$HOME/.npm"
+install:
+- npm install
+script:
+- npm run lint
+notifications:
+  slack:
+    secure: yhei/7UpGO32XZR+hqPcSSrYhdi77vMM0efFlayEXUfhVrFbRtv1xW1QpBWOwGNueZQIbuXk1Au4M+2zBVgdvPAeEqCrb8QjviKFzlk50gXDwmBddEGriO978KZCz45pznxP+pow7ARVYAIL8KdVnQ54keQmvFIXR5buUho2uRtMCXlTp7MBHcCGaJbLMI/orySoDBtk23S3N74fVxhbo/DI9wN2Czd6RFk8BnfTgwWFiSmfzbWs9zSWqvP39lRJAQkRGf/tQVXT+XYqWfdoXDCtJkMqinOXcwKyRnOksUBUPWHv6Fak+En8l+UQ3DJPr5Sbbn4HlO0hl+rwdTuKipn0SHvHT/3265clQA2s0ywA6spT5jdkfq9jXob1hXji4fW9g9qClj63pbyNz6jnnCUStR3XMDzRdPvU9ut4/tBfuF3/oDp6RSSM1B/N6mDxDKKMLkxyyEXm8XpSiZEazbvdJOG/GVY1V/Lt2eYEYn/E5ER/5jo0x/ffhud97TiIJa8LazbG3jxaCoEQUPu4RIcHi6rhdoHaIk/mAZaHTqOe4oS8hsxo/bL8YDibsYbazrlIQiGrqdQEXJcJ8+sZ3v3LzayhfV6+uv2csNPhRFeemCiZVlH8Che5UqojCAzAQwZNob3KjsZgtdSA6opqocOeacfgnm9HWFUBezQaTnE=
